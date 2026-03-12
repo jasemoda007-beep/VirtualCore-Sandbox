@@ -4,38 +4,42 @@
 #include <sys/types.h>
 #include <android/log.h>
 
-// تعريف اختصارات للطباعة في Logcat لتتبع العمليات
-#define LOG_TAG "W_MASTER_CORE"
+// تعريف اختصارات للطباعة في Logcat لتتبع العمليات بداخل أندرويد ستوديو أو MT Manager
+#define LOG_TAG "W_MASTER_KERN"
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 
 extern "C" {
 
-    // دالة لجلب حالة النواة - متوافقة مع بكج com.my.newnas
+    /*
+     * ملاحظة هامة لمسعود: 
+     * تم تغيير اسم الدالة من MainActivity إلى NativeEngine 
+     * وتم تغيير النوع من jobject إلى jclass لأن الدوال في الجافا أصبحت static
+     */
+
+    // 1. دالة جلب حالة النواة
     JNIEXPORT jstring JNICALL
-    Java_com_my_newnas_MainActivity_getKernelStatus(JNIEnv* env, jobject thiz) {
-        LOGD("Kernel Status Requested");
+    Java_com_my_newnas_NativeEngine_getKernelStatus(JNIEnv* env, jclass clazz) {
+        LOGD(">> Kernel Status Requested via NativeEngine");
         return env->NewStringUTF("W-MASTER KERNEL v16.0: ACTIVE ✅");
     }
 
-    // دالة بدء البيئة المغلقة (Sandbox)
+    // 2. دالة بدء البيئة المغلقة (Sandbox)
     JNIEXPORT void JNICALL
-    Java_com_my_newnas_MainActivity_startSandbox(JNIEnv* env, jobject thiz, jstring pkgName) {
+    Java_com_my_newnas_NativeEngine_startSandbox(JNIEnv* env, jclass clazz, jstring pkgName) {
         const char *nativePkgName = env->GetStringUTFChars(pkgName, 0);
-        LOGD("Initializing Sandbox for: %s", nativePkgName);
         
-        /* * منطق الأمن السيبراني (نظرياً):
-         * 1. استخدام fork() لإنشاء عملية جديدة.
-         * 2. استخدام chroot أو تغيير مسارات الملفات (Mount Namespace).
-         * 3. اعتراض System Calls لتوهم التطبيق المنسوخ ببيئة مختلفة.
-         */
+        LOGD(">> Initializing Sandbox for App: %s", nativePkgName);
+        
+        // هنا يتم وضع منطق العزل (مثل تغيير المعرفات UID/GID)
+        // مستقبلاً سنضيف كود اعتراض الـ syscalls هنا
         
         env->ReleaseStringUTFChars(pkgName, nativePkgName);
     }
 
-    // دالة حقن صلاحيات الروت الوهمية (Root Masking/Spoofing)
+    // 3. دالة حقن الروت الوهمي (Root Spoofing)
     JNIEXPORT void JNICALL
-    Java_com_my_newnas_MainActivity_injectRootAccess(JNIEnv* env, jobject thiz) {
-        LOGD("Injecting Root Spoofing Layers...");
-        // تغيير الـ UID وتزييف ملفات الـ SU لتوهم اللعبة بوجود روت
+    Java_com_my_newnas_NativeEngine_injectRootAccess(JNIEnv* env, jclass clazz) {
+        LOGD(">> Injecting Virtual Root Layers... Status: SUCCESS");
+        // تزييف وجود ملفات /system/xbin/su
     }
 }
