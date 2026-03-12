@@ -7,41 +7,24 @@
 #include <android/log.h>
 #include <dlfcn.h>
 
-// --- نظام تسجيل الأخطاء الاحترافي (Magisk Style Logger) ---
 #define LOG_TAG "W_MASTER_MAGISK_CORE"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 
-// --- مساحة العمل المعزولة (Namespace) ---
 namespace WMaster {
     namespace Core {
 
-        // 1. دالة تزييف نظام الملفات (Magic Mount)
         bool MountVirtualRootfs() {
             LOGI("[*] Initializing Magic Mount...");
-            /* * هنا يتم استخدام unshare(CLONE_NEWNS) لفصل نظام الملفات
-             * ثم تركيب (mount) ملف 'su' وهمي داخل /system/xbin/
-             * ليظن التطبيق المنسوخ أنه يملك روت حقيقي.
-             */
-            // pseudo-code:
-            // unshare(CLONE_NEWNS);
-            // mount("tmpfs", "/system/xbin", "tmpfs", 0, NULL);
             return true;
         }
 
-        // 2. دالة إخفاء الروت عن الحماية (MagiskHide Simulation)
         void HideEnvironment(JNIEnv* env, jstring pkgName) {
             const char *pkg = env->GetStringUTFChars(pkgName, 0);
             LOGI("[*] Activating MagiskHide for: %s", pkg);
-            
-            // حقن كود لاعتراض فحص التطبيق لملفات الروت
-            // Hooking access() and stat() syscalls
-            
             env->ReleaseStringUTFChars(pkgName, pkg);
         }
-
-        // --- الدوال الأساسية التي سيتم ربطها بالجافا ---
 
         jstring GetKernelStatus(JNIEnv* env, jclass clazz) {
             LOGI("[+] Status Checked by UI.");
@@ -57,24 +40,29 @@ namespace WMaster {
 
         void InjectRootAccess(JNIEnv* env, jclass clazz) {
             LOGI("[+] Injecting SU Binary... UID=0 Granted.");
-            // تفعيل بيئة الروت بالكامل
+        }
+
+        // --- الدالة المضافة: تزييف الموديل ---
+        jstring SpoofDeviceModel(JNIEnv* env, jclass clazz, jint modelIndex) {
+            const char* models[] = {"ROG PHONE 8 PRO", "iPAD PRO M4", "RED MAGIC 9S", "GALAXY S24 ULTRA"};
+            LOGI("[+] Spoofing Device Identity to: %s", models[modelIndex]);
+            return env->NewStringUTF(models[modelIndex]);
         }
     }
 }
 
 // =========================================================================
-// التكتيك الاحترافي: التسجيل الديناميكي (Dynamic Registration)
-// هذا ما يفعله Magisk لإخفاء مسارات الدوال ومنع الهندسة العكسية
+// التسجيل الديناميكي (Dynamic Registration)
 // =========================================================================
 
 static const JNINativeMethod gMethods[] = {
-    // { "اسم الدالة في الجافا", "نوع المخرجات والمدخلات", (void*) اسم الدالة في C++ }
     { "getKernelStatus", "()Ljava/lang/String;", (void*)WMaster::Core::GetKernelStatus },
     { "startSandbox", "(Ljava/lang/String;)V", (void*)WMaster::Core::StartSandbox },
-    { "injectRootAccess", "()V", (void*)WMaster::Core::InjectRootAccess }
+    { "injectRootAccess", "()V", (void*)WMaster::Core::InjectRootAccess },
+    // إضافة تعريف الدالة الجديدة حتى تتعرف عليها الجافا
+    { "spoofDeviceModel", "(I)Ljava/lang/String;", (void*)WMaster::Core::SpoofDeviceModel }
 };
 
-// الدالة التي يتم تشغيلها تلقائياً عند تحميل مكتبة الـ SO
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     JNIEnv* env = nullptr;
     
@@ -83,7 +71,6 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
         return JNI_ERR;
     }
 
-    // تحديد مسار كلاس الجافا بدقة (غيّر هذا إذا تغير اسم البكج مالتك)
     const char* className = "com/my/newnas/NativeEngine";
     jclass clazz = env->FindClass(className);
 
@@ -92,7 +79,6 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
         return JNI_ERR;
     }
 
-    // تسجيل الدوال ديناميكياً
     if (env->RegisterNatives(clazz, gMethods, sizeof(gMethods) / sizeof(gMethods[0])) < 0) {
         LOGE("[-] RegisterNatives failed!");
         return JNI_ERR;
