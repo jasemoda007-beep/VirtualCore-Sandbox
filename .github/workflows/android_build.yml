@@ -1,0 +1,58 @@
+name: Build Android Native Libraries
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4 # تم التحديث إلى v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4 # تم التحديث إلى v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Install NDK & CMake
+      run: |
+        sdkmanager --install "ndk;25.2.9519653" "cmake;3.22.1"
+
+    - name: Build arm64-v8a
+      run: |
+        mkdir -p build/arm64-v8a
+        cd build/arm64-v8a
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk/25.2.9519653/build/cmake/android.toolchain.cmake \
+              -DANDROID_ABI=arm64-v8a \
+              -DANDROID_PLATFORM=android-21 \
+              -DCMAKE_BUILD_TYPE=Release \
+              ../..
+        make
+
+    - name: Build armeabi-v7a
+      run: |
+        mkdir -p build/armeabi-v7a
+        cd build/armeabi-v7a
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk/25.2.9519653/build/cmake/android.toolchain.cmake \
+              -DANDROID_ABI=armeabi-v7a \
+              -DANDROID_PLATFORM=android-21 \
+              -DCMAKE_BUILD_TYPE=Release \
+              ../..
+        make
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4 # تم التحديث إلى v4
+      with:
+        name: W-MASTER-Native-Libs
+        path: |
+          build/arm64-v8a/*.so
+          build/armeabi-v7a/*.so
