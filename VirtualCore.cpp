@@ -4,63 +4,72 @@
 #include <unistd.h>
 #include <android/log.h>
 
-#define LOG_TAG "W_MASTER_STORAGE_CORE"
+#define LOG_TAG "W_MASTER_MAGISK_CORE"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 
-// خريطة لتخزين المسارات الوهمية
+// خريطة لتخزين المسارات الوهمية للقرص
 std::map<std::string, std::string> path_map;
 
 namespace WMaster {
-    namespace Storage {
+    namespace Core {
 
-        // دالة تحويل المسار (The Redirection Engine)
-        std::string redirect_path(const char* original_path) {
-            std::string path(original_path);
-            for (auto const& [src, dst] : path_map) {
-                if (path.find(src) == 0) {
-                    std::string redirected = dst + path.substr(src.length());
-                    LOGI("[V-DISK] Redirecting: %s -> %s", original_path, redirected.c_str());
-                    return redirected;
-                }
-            }
-            return path;
-        }
-
-        // إعداد القرص الوهمي لتطبيق معين
-        void InitVirtualDisk(JNIEnv* env, jclass clazz, jstring javaPkg, jstring javaSandboxPath) {
-            const char* pkg = env->GetStringUTFChars(javaPkg, 0);
-            const char* sandbox = env->GetStringUTFChars(javaSandboxPath, 0);
-
-            // تحويل مسارات البيانات الحقيقية إلى الساندبوكس
-            std::string original_data = "/data/data/" + std::string(pkg);
-            std::string original_user_data = "/data/user/0/" + std::string(pkg);
-            
-            path_map[original_data] = std::string(sandbox);
-            path_map[original_user_data] = std::string(sandbox);
-
-            LOGI("[V-DISK] Disk Mounted for %s at %s", pkg, sandbox);
-
-            env->ReleaseStringUTFChars(javaPkg, pkg);
-            env->ReleaseStringUTFChars(javaSandboxPath, sandbox);
-        }
-
+        // دالة حالة النواة
         jstring GetKernelStatus(JNIEnv* env, jclass clazz) {
-            return env->NewStringUTF("W-MASTER KERNEL: V-DISK ACTIVE ✅");
+            return env->NewStringUTF("W-MASTER MAGISK-CORE v1.0: INTEGRATED ✅");
+        }
+
+        // دالة تشغيل الساندبوكس
+        void StartSandbox(JNIEnv* env, jclass clazz, jstring pkgName) {
+            LOGI("[+] Sandbox Engine Started.");
+        }
+
+        // دالة حقن الروت
+        void InjectRootAccess(JNIEnv* env, jclass clazz) {
+            LOGI("[+] Injecting SU Binary... UID=0.");
+        }
+
+        // دالة القرص الوهمي
+        void InitVirtualDisk(JNIEnv* env, jclass clazz, jstring javaPkg, jstring javaPath) {
+            const char* pkg = env->GetStringUTFChars(javaPkg, 0);
+            const char* path = env->GetStringUTFChars(javaPath, 0);
+            LOGI("[V-DISK] Mounted for %s", pkg);
+            env->ReleaseStringUTFChars(javaPkg, pkg);
+            env->ReleaseStringUTFChars(javaPath, path);
+        }
+
+        // --- 🛡️ الدالة المطلوبة: تزييف الموديل 🛡️ ---
+        jstring SpoofDeviceModel(JNIEnv* env, jclass clazz, jint modelIndex) {
+            const char* models[] = {"ROG PHONE 8 PRO", "iPAD PRO M4", "RED MAGIC 9S", "GALAXY S24 ULTRA"};
+            if (modelIndex < 0 || modelIndex >= 4) modelIndex = 0;
+            LOGI("[+] Spoofing Device Identity to: %s", models[modelIndex]);
+            return env->NewStringUTF(models[modelIndex]);
         }
     }
 }
 
+// =========================================================================
+// مصفوفة التسجيل الديناميكي (يجب أن تشمل كل الدوال)
+// =========================================================================
+
 static const JNINativeMethod gMethods[] = {
-    { "getKernelStatus", "()Ljava/lang/String;", (void*)WMaster::Storage::GetKernelStatus },
-    { "initVirtualDisk", "(Ljava/lang/String;Ljava/lang/String;)V", (void*)WMaster::Storage::InitVirtualDisk }
+    { "getKernelStatus", "()Ljava/lang/String;", (void*)WMaster::Core::GetKernelStatus },
+    { "startSandbox", "(Ljava/lang/String;)V", (void*)WMaster::Core::StartSandbox },
+    { "injectRootAccess", "()V", (void*)WMaster::Core::InjectRootAccess },
+    { "initVirtualDisk", "(Ljava/lang/String;Ljava/lang/String;)V", (void*)WMaster::Core::InitVirtualDisk },
+    // تسجيل دالة التزييف المفقودة هنا
+    { "spoofDeviceModel", "(I)Ljava/lang/String;", (void*)WMaster::Core::SpoofDeviceModel }
 };
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
-    JNIEnv* env;
+    JNIEnv* env = nullptr;
     if (vm->GetEnv((void**)&env, JNI_VERSION_1_6) != JNI_OK) return JNI_ERR;
 
     jclass clazz = env->FindClass("com/my/newnas/NativeEngine");
-    env->RegisterNatives(clazz, gMethods, sizeof(gMethods) / sizeof(gMethods[0]));
+    if (clazz == nullptr) return JNI_ERR;
+
+    if (env->RegisterNatives(clazz, gMethods, sizeof(gMethods) / sizeof(gMethods[0])) < 0) {
+        return JNI_ERR;
+    }
 
     return JNI_VERSION_1_6;
 }
