@@ -67,9 +67,11 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     JNIEnv* env;
     if (vm->GetEnv((void**)&env, JNI_VERSION_1_6) != JNI_OK) return JNI_ERR;
 
-    jclass clazz = env->FindClass("com/my/newnas/NativeEngine");
+    // 🚀 التعديل الجذري: ربط النواة بالمسار الجديد للتطبيق 🚀
+    jclass clazz = env->FindClass("com/wmaster/vcloner/NativeEngine");
     if (clazz == nullptr) {
-        LOGI("[ERROR] Failed to find class com/my/newnas/NativeEngine");
+        // تم تعديل رسالة الخطأ أيضاً لتطابق المسار الجديد
+        LOGI("[ERROR] Failed to find class com/wmaster/vcloner/NativeEngine");
         return JNI_ERR;  // فشل في العثور على الفئة
     }
 
